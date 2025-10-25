@@ -3,7 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 // Define public routes that don't require authentication
 const publicRoutes = ["/login", "/register"];
 
-export default async function proxy(request: NextRequest) {
+export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   /*
