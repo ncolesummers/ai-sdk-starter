@@ -1,6 +1,6 @@
 import { streamObject, tool, type UIMessageStreamWriter } from "ai";
-import type { Session } from "next-auth";
 import { z } from "zod";
+import type { Session } from "@/lib/auth";
 import { getDocumentById, saveSuggestions } from "@/lib/db/queries";
 import type { Suggestion } from "@/lib/db/schema";
 import type { ChatMessage } from "@/lib/types";
@@ -70,8 +70,8 @@ export const requestSuggestions = ({
         suggestions.push(suggestion);
       }
 
-      if (session.user?.id) {
-        const userId = session.user.id;
+      if (session.userId) {
+        const userId = session.userId;
 
         await saveSuggestions({
           suggestions: suggestions.map((suggestion) => ({
