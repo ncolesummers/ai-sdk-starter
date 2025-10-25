@@ -8,6 +8,7 @@ import {
   streamText,
 } from "ai";
 import { unstable_cache as cache } from "next/cache";
+import { headers } from "next/headers";
 import { after } from "next/server";
 import {
   createResumableStreamContext,
@@ -16,9 +17,8 @@ import {
 import type { ModelCatalog } from "tokenlens/core";
 import { fetchModels } from "tokenlens/fetch";
 import { getUsage } from "tokenlens/helpers";
-import { auth, type UserType } from "@/app/(auth)/auth";
 import type { VisibilityType } from "@/components/visibility-selector";
-import { entitlementsByUserType } from "@/lib/ai/entitlements";
+import { entitlementsByUserType, type UserType } from "@/lib/ai/entitlements";
 import type { ChatModel } from "@/lib/ai/models";
 import { type RequestHints, systemPrompt } from "@/lib/ai/prompts";
 import { myProvider } from "@/lib/ai/providers";
@@ -26,6 +26,7 @@ import { createDocument } from "@/lib/ai/tools/create-document";
 import { getWeather } from "@/lib/ai/tools/get-weather";
 import { requestSuggestions } from "@/lib/ai/tools/request-suggestions";
 import { updateDocument } from "@/lib/ai/tools/update-document";
+import { auth } from "@/lib/auth";
 import { isProductionEnvironment } from "@/lib/constants";
 import {
   createStreamId,
@@ -107,13 +108,15 @@ export async function POST(request: Request) {
       selectedVisibilityType: VisibilityType;
     } = requestBody;
 
-    const session = await auth();
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
 
     if (!session?.user) {
       return new ChatSDKError("unauthorized:chat").toResponse();
     }
 
-    const userType: UserType = session.user.type;
+    const userType: UserType = (session.user as any).type || "regular";
 
     const messageCount = await getMessageCountByUserId({
       id: session.user.id,
@@ -192,10 +195,16 @@ export async function POST(request: Request) {
           experimental_transform: smoothStream({ chunking: "word" }),
           tools: {
             getWeather,
-            createDocument: createDocument({ session, dataStream }),
-            updateDocument: updateDocument({ session, dataStream }),
+            createDocument: createDocument({
+              session: session.session,
+              dataStream,
+            }),
+            updateDocument: updateDocument({
+              session: session.session,
+              dataStream,
+            }),
             requestSuggestions: requestSuggestions({
-              session,
+              session: session.session,
               dataStream,
             }),
           },
@@ -315,7 +324,9 @@ export async function DELETE(request: Request) {
     return new ChatSDKError("bad_request:api").toResponse();
   }
 
-  const session = await auth();
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
 
   if (!session?.user) {
     return new ChatSDKError("unauthorized:chat").toResponse();

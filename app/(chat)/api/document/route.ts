@@ -1,5 +1,6 @@
-import { auth } from "@/app/(auth)/auth";
+import { headers } from "next/headers";
 import type { ArtifactKind } from "@/components/artifact";
+import { auth } from "@/lib/auth";
 import {
   deleteDocumentsByIdAfterTimestamp,
   getDocumentsById,
@@ -18,7 +19,9 @@ export async function GET(request: Request) {
     ).toResponse();
   }
 
-  const session = await auth();
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
 
   if (!session?.user) {
     return new ChatSDKError("unauthorized:document").toResponse();
@@ -50,7 +53,9 @@ export async function POST(request: Request) {
     ).toResponse();
   }
 
-  const session = await auth();
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
 
   if (!session?.user) {
     return new ChatSDKError("not_found:document").toResponse();
@@ -103,7 +108,9 @@ export async function DELETE(request: Request) {
     ).toResponse();
   }
 
-  const session = await auth();
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
 
   if (!session?.user) {
     return new ChatSDKError("unauthorized:document").toResponse();
