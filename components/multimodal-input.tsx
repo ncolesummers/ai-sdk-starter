@@ -195,9 +195,10 @@ function PureMultimodalInput({
     }
   }, []);
 
-  const _modelResolver = useMemo(() => {
-    return myProvider.languageModel(selectedModelId);
-  }, [selectedModelId]);
+  const _modelResolver = useMemo(
+    () => myProvider.languageModel(selectedModelId),
+    [selectedModelId]
+  );
 
   const contextProps = useMemo(
     () => ({
