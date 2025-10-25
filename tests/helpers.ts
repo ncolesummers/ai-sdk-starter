@@ -7,7 +7,6 @@ import {
   expect,
   type Page,
 } from "@playwright/test";
-import { generateId } from "ai";
 import { getUnixTime } from "date-fns";
 import { ChatPage } from "./pages/chat";
 
@@ -15,8 +14,15 @@ export type UserContext = {
   context: BrowserContext;
   page: Page;
   request: APIRequestContext;
+  email: string;
 };
 
+/**
+ * Creates an authenticated browser context for testing.
+ *
+ * Uses a test-only API endpoint (/api/test-auth) that bypasses magic link verification
+ * This endpoint is only available when PLAYWRIGHT=True environment variable is set
+ */
 export async function createAuthenticatedContext({
   browser,
   name,
@@ -36,19 +42,25 @@ export async function createAuthenticatedContext({
   const page = await context.newPage();
 
   const email = `test-${name}@playwright.com`;
-  const password = generateId();
 
-  await page.goto("http://localhost:3000/register");
-  await page.getByPlaceholder("user@acme.com").click();
-  await page.getByPlaceholder("user@acme.com").fill(email);
-  await page.getByLabel("Password").click();
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: "Sign Up" }).click();
-
-  await expect(page.getByTestId("toast")).toContainText(
-    "Account created successfully!"
+  // Use test auth endpoint to create user and session without magic link
+  const authResponse = await page.request.post(
+    "http://localhost:3000/api/test-auth",
+    {
+      data: { email },
+    }
   );
 
+  if (!authResponse.ok()) {
+    throw new Error(
+      `Failed to create test auth session: ${await authResponse.text()}`
+    );
+  }
+
+  // Navigate to home page to ensure session is active
+  await page.goto("http://localhost:3000/");
+
+  // Verify we're authenticated by checking for user UI elements
   const chatPage = new ChatPage(page);
   await chatPage.createNewChat();
   await chatPage.chooseModelFromSelector("chat-model-reasoning");
@@ -65,15 +77,14 @@ export async function createAuthenticatedContext({
     context: newContext,
     page: newPage,
     request: newContext.request,
+    email,
   };
 }
 
 export function generateRandomTestUser() {
   const email = `test-${getUnixTime(new Date())}@playwright.com`;
-  const password = generateId();
 
   return {
     email,
-    password,
   };
 }

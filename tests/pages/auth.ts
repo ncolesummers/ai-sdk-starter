@@ -18,26 +18,36 @@ export class AuthPage {
     await expect(this.page.getByRole("heading")).toContainText("Sign Up");
   }
 
-  async register(email: string, password: string) {
+  /**
+   * Request a magic link to register (no password needed)
+   */
+  async register(email: string) {
     await this.gotoRegister();
     await this.page.getByPlaceholder("user@acme.com").click();
     await this.page.getByPlaceholder("user@acme.com").fill(email);
-    await this.page.getByLabel("Password").click();
-    await this.page.getByLabel("Password").fill(password);
-    await this.page.getByRole("button", { name: "Sign Up" }).click();
+    await this.page.getByRole("button", { name: "Send Magic Link" }).click();
   }
 
-  async login(email: string, password: string) {
+  /**
+   * Request a magic link to login (no password needed)
+   */
+  async login(email: string) {
     await this.gotoLogin();
     await this.page.getByPlaceholder("user@acme.com").click();
     await this.page.getByPlaceholder("user@acme.com").fill(email);
-    await this.page.getByLabel("Password").click();
-    await this.page.getByLabel("Password").fill(password);
-    await this.page.getByRole("button", { name: "Sign In" }).click();
+    await this.page.getByRole("button", { name: "Send Magic Link" }).click();
   }
 
-  async logout(email: string, password: string) {
-    await this.login(email, password);
+  /**
+   * Logout using the test auth helper to create session, then sign out
+   */
+  async logout(email: string) {
+    // Use test auth to create session
+    await this.page.request.post("http://localhost:3000/api/test-auth", {
+      data: { email },
+    });
+
+    await this.page.goto("/");
     await this.page.waitForURL("/");
 
     await this.openSidebar();
@@ -54,8 +64,9 @@ export class AuthPage {
 
     await authMenuItem.click();
 
-    const userEmail = this.page.getByTestId("user-email");
-    await expect(userEmail).toContainText("Guest");
+    // After sign out, user should be redirected to login
+    await this.page.waitForURL("/login");
+    await expect(this.page).toHaveURL("/login");
   }
 
   async expectToastToContain(text: string) {
