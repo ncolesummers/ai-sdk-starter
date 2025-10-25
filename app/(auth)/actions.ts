@@ -1,18 +1,15 @@
 "use server";
 
 import { z } from "zod";
-
-import { createUser, getUser } from "@/lib/db/queries";
-
-import { signIn } from "./auth";
+import { $fetch } from "@/lib/auth-client";
 
 const authFormSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(6),
 });
 
 export type LoginActionState = {
   status: "idle" | "in_progress" | "success" | "failed" | "invalid_data";
+  message?: string;
 };
 
 export const login = async (
@@ -22,33 +19,33 @@ export const login = async (
   try {
     const validatedData = authFormSchema.parse({
       email: formData.get("email"),
-      password: formData.get("password"),
     });
 
-    await signIn("credentials", {
-      email: validatedData.email,
-      password: validatedData.password,
-      redirect: false,
+    // Request magic link via BetterAuth
+    await $fetch("/magic-link/send-magic-link", {
+      method: "POST",
+      body: {
+        email: validatedData.email,
+        callbackURL: "/",
+      },
     });
 
-    return { status: "success" };
+    return {
+      status: "success",
+      message: "Check your email for a magic link to sign in.",
+    };
   } catch (error) {
     if (error instanceof z.ZodError) {
       return { status: "invalid_data" };
     }
 
-    return { status: "failed" };
+    return { status: "failed", message: "Failed to send magic link." };
   }
 };
 
 export type RegisterActionState = {
-  status:
-    | "idle"
-    | "in_progress"
-    | "success"
-    | "failed"
-    | "user_exists"
-    | "invalid_data";
+  status: "idle" | "in_progress" | "success" | "failed" | "invalid_data";
+  message?: string;
 };
 
 export const register = async (
@@ -58,27 +55,26 @@ export const register = async (
   try {
     const validatedData = authFormSchema.parse({
       email: formData.get("email"),
-      password: formData.get("password"),
     });
 
-    const [user] = await getUser(validatedData.email);
-
-    if (user) {
-      return { status: "user_exists" } as RegisterActionState;
-    }
-    await createUser(validatedData.email, validatedData.password);
-    await signIn("credentials", {
-      email: validatedData.email,
-      password: validatedData.password,
-      redirect: false,
+    // Request magic link - BetterAuth will create user if they don't exist
+    await $fetch("/magic-link/send-magic-link", {
+      method: "POST",
+      body: {
+        email: validatedData.email,
+        callbackURL: "/",
+      },
     });
 
-    return { status: "success" };
+    return {
+      status: "success",
+      message: "Check your email for a magic link to complete registration.",
+    };
   } catch (error) {
     if (error instanceof z.ZodError) {
       return { status: "invalid_data" };
     }
 
-    return { status: "failed" };
+    return { status: "failed", message: "Failed to send magic link." };
   }
 };
