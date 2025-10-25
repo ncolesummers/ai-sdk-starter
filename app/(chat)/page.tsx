@@ -1,16 +1,20 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Chat } from "@/components/chat";
 import { DataStreamHandler } from "@/components/data-stream-handler";
 import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
+import { auth } from "@/lib/auth";
 import { generateUUID } from "@/lib/utils";
-import { auth } from "../(auth)/auth";
+
+export const dynamic = "force-dynamic";
 
 export default async function Page() {
-  const session = await auth();
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
 
   if (!session) {
-    redirect("/api/auth/guest");
+    redirect("/login");
   }
 
   const id = generateUUID();
