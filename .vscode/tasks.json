@@ -1,0 +1,74 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Dev Server",
+      "type": "shell",
+      "command": "${env:HOME}/.local/share/pnpm/pnpm",
+      "args": ["dev"],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "runOptions": {
+        "runOn": "default"
+      }
+    },
+    {
+      "label": "Build",
+      "type": "shell",
+      "command": "${env:HOME}/.local/share/pnpm/pnpm",
+      "args": ["build"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Lint",
+      "type": "shell",
+      "command": "${env:HOME}/.local/share/pnpm/pnpm",
+      "args": ["lint"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Type Check",
+      "type": "shell",
+      "command": "${env:HOME}/.local/share/pnpm/pnpm",
+      "args": ["exec", "tsc", "--noEmit"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Quality",
+      "dependsOrder": "sequence",
+      "dependsOn": ["Lint", "Type Check"],
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Format",
+      "type": "shell",
+      "command": "${env:HOME}/.local/share/pnpm/pnpm",
+      "args": ["format"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Tests",
+      "type": "shell",
+      "command": "${env:HOME}/.local/share/pnpm/pnpm",
+      "args": ["exec", "playwright", "test"],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": [],
+      "options": {
+        "env": {
+          "PLAYWRIGHT": "true"
+        }
+      }
+    }
+  ]
+}
