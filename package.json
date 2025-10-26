@@ -17,7 +17,10 @@
     "db:up": "drizzle-kit up",
     "test": "export PLAYWRIGHT=True && pnpm exec playwright test",
     "test:api": "hurl --test .hurl/*.hurl",
-    "test:api:verbose": "hurl --test --verbose .hurl/*.hurl"
+    "test:api:verbose": "hurl --test --verbose .hurl/*.hurl",
+    "test:api:health": "hurl --test .hurl/health.hurl",
+    "test:api:auth": "hurl --test .hurl/auth.hurl",
+    "test:api:chat": "hurl --test .hurl/chat.hurl"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^1.0.22",
