@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { $fetch } from "@/lib/auth-client";
+import { signIn } from "@/lib/auth-client";
 
 const authFormSchema = z.object({
   email: z.string().email(),
@@ -21,13 +21,10 @@ export const login = async (
       email: formData.get("email"),
     });
 
-    // Request magic link via BetterAuth
-    await $fetch("/magic-link/send-magic-link", {
-      method: "POST",
-      body: {
-        email: validatedData.email,
-        callbackURL: "/",
-      },
+    // Request magic link via BetterAuth client library
+    await signIn.magicLink({
+      email: validatedData.email,
+      callbackURL: "/",
     });
 
     return {
@@ -36,10 +33,14 @@ export const login = async (
     };
   } catch (error) {
     if (error instanceof z.ZodError) {
+      console.error("Login validation error:", error.errors);
       return { status: "invalid_data" };
     }
 
-    return { status: "failed", message: "Failed to send magic link." };
+    console.error("Login error:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to send magic link.";
+    return { status: "failed", message: errorMessage };
   }
 };
 
@@ -58,12 +59,9 @@ export const register = async (
     });
 
     // Request magic link - BetterAuth will create user if they don't exist
-    await $fetch("/magic-link/send-magic-link", {
-      method: "POST",
-      body: {
-        email: validatedData.email,
-        callbackURL: "/",
-      },
+    await signIn.magicLink({
+      email: validatedData.email,
+      callbackURL: "/",
     });
 
     return {
@@ -72,9 +70,13 @@ export const register = async (
     };
   } catch (error) {
     if (error instanceof z.ZodError) {
+      console.error("Registration validation error:", error.errors);
       return { status: "invalid_data" };
     }
 
-    return { status: "failed", message: "Failed to send magic link." };
+    console.error("Registration error:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to send magic link.";
+    return { status: "failed", message: errorMessage };
   }
 };
