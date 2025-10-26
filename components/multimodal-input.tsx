@@ -12,7 +12,6 @@ import {
   startTransition,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -21,7 +20,6 @@ import { useLocalStorage, useWindowSize } from "usehooks-ts";
 import { saveChatModelAsCookie } from "@/app/(chat)/actions";
 import { SelectItem } from "@/components/ui/select";
 import { chatModels } from "@/lib/ai/models";
-import { myProvider } from "@/lib/ai/providers";
 import type { Attachment, ChatMessage } from "@/lib/types";
 import type { AppUsage } from "@/lib/usage";
 import { cn } from "@/lib/utils";
@@ -95,12 +93,6 @@ function PureMultimodalInput({
     }
   }, [adjustHeight]);
 
-  const resetHeight = useCallback(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "44px";
-    }
-  }, []);
-
   const [localStorageInput, setLocalStorageInput] = useLocalStorage(
     "input",
     ""
@@ -129,7 +121,7 @@ function PureMultimodalInput({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadQueue, setUploadQueue] = useState<string[]>([]);
 
-  const submitForm = useCallback(() => {
+  const submitForm = () => {
     window.history.replaceState({}, "", `/chat/${chatId}`);
 
     sendMessage({
@@ -150,25 +142,15 @@ function PureMultimodalInput({
 
     setAttachments([]);
     setLocalStorageInput("");
-    resetHeight();
+    adjustHeight();
     setInput("");
 
     if (width && width > 768) {
       textareaRef.current?.focus();
     }
-  }, [
-    input,
-    setInput,
-    attachments,
-    sendMessage,
-    setAttachments,
-    setLocalStorageInput,
-    width,
-    chatId,
-    resetHeight,
-  ]);
+  };
 
-  const uploadFile = useCallback(async (file: File) => {
+  const uploadFile = async (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
 
@@ -193,45 +175,34 @@ function PureMultimodalInput({
     } catch (_error) {
       toast.error("Failed to upload file, please try again!");
     }
-  }, []);
+  };
 
-  const _modelResolver = useMemo(
-    () => myProvider.languageModel(selectedModelId),
-    [selectedModelId]
-  );
+  const contextProps = {
+    usage,
+  };
 
-  const contextProps = useMemo(
-    () => ({
-      usage,
-    }),
-    [usage]
-  );
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
 
-  const handleFileChange = useCallback(
-    async (event: ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(event.target.files || []);
+    setUploadQueue(files.map((file) => file.name));
 
-      setUploadQueue(files.map((file) => file.name));
+    try {
+      const uploadPromises = files.map((file) => uploadFile(file));
+      const uploadedAttachments = await Promise.all(uploadPromises);
+      const successfullyUploadedAttachments = uploadedAttachments.filter(
+        (attachment) => attachment !== undefined
+      );
 
-      try {
-        const uploadPromises = files.map((file) => uploadFile(file));
-        const uploadedAttachments = await Promise.all(uploadPromises);
-        const successfullyUploadedAttachments = uploadedAttachments.filter(
-          (attachment) => attachment !== undefined
-        );
-
-        setAttachments((currentAttachments) => [
-          ...currentAttachments,
-          ...successfullyUploadedAttachments,
-        ]);
-      } catch (error) {
-        console.error("Error uploading files!", error);
-      } finally {
-        setUploadQueue([]);
-      }
-    },
-    [setAttachments, uploadFile]
-  );
+      setAttachments((currentAttachments) => [
+        ...currentAttachments,
+        ...successfullyUploadedAttachments,
+      ]);
+    } catch (error) {
+      console.error("Error uploading files!", error);
+    } finally {
+      setUploadQueue([]);
+    }
+  };
 
   return (
     <div className={cn("relative flex w-full flex-col gap-4", className)}>

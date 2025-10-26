@@ -1,14 +1,7 @@
 "use client";
 
 import equal from "fast-deep-equal";
-import {
-  type MouseEvent,
-  memo,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-} from "react";
+import { type MouseEvent, memo, useEffect, useRef } from "react";
 import useSWR from "swr";
 import { useArtifact } from "@/hooks/use-artifact";
 import type { Document } from "@/lib/db/schema";
@@ -39,7 +32,7 @@ export function DocumentPreview({
     Document[]
   >(result ? `/api/document?id=${result.id}` : null, fetcher);
 
-  const previewDocument = useMemo(() => documents?.[0], [documents]);
+  const previewDocument = documents?.[0];
   const hitboxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -154,30 +147,27 @@ const PureHitboxLayer = ({
     updaterFn: UIArtifact | ((currentArtifact: UIArtifact) => UIArtifact)
   ) => void;
 }) => {
-  const handleClick = useCallback(
-    (event: MouseEvent<HTMLElement>) => {
-      const boundingBox = event.currentTarget.getBoundingClientRect();
+  const handleClick = (event: MouseEvent<HTMLElement>) => {
+    const boundingBox = event.currentTarget.getBoundingClientRect();
 
-      setArtifact((artifact) =>
-        artifact.status === "streaming"
-          ? { ...artifact, isVisible: true }
-          : {
-              ...artifact,
-              title: result.title,
-              documentId: result.id,
-              kind: result.kind,
-              isVisible: true,
-              boundingBox: {
-                left: boundingBox.x,
-                top: boundingBox.y,
-                width: boundingBox.width,
-                height: boundingBox.height,
-              },
-            }
-      );
-    },
-    [setArtifact, result]
-  );
+    setArtifact((artifact) =>
+      artifact.status === "streaming"
+        ? { ...artifact, isVisible: true }
+        : {
+            ...artifact,
+            title: result.title,
+            documentId: result.id,
+            kind: result.kind,
+            isVisible: true,
+            boundingBox: {
+              left: boundingBox.x,
+              top: boundingBox.y,
+              width: boundingBox.width,
+              height: boundingBox.height,
+            },
+          }
+    );
+  };
 
   return (
     <div
