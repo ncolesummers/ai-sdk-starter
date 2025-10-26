@@ -4,7 +4,7 @@
   "files": {
     "includes": [
       "**/*",
-      "!components/ui",
+      // "!components/ui",
       "!lib/utils.ts",
       "!hooks/use-mobile.ts"
     ]

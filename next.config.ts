@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  reactCompiler: true,
   // PPR disabled - our chat pages are fully dynamic (auth + database queries)
   // and don't benefit from partial prerendering
   output: "standalone", // For Docker deployment
