@@ -180,7 +180,7 @@ chatModels = [
 // Tools disabled for reasoning model to prevent early termination
 experimental_activeTools: selectedChatModel === "chat-model-reasoning"
   ? []
-  : ["getWeather", "createDocument", ...]
+  : ["createDocument", "updateDocument", "requestSuggestions"]
 ```
 
 ### Entitlements & Rate Limiting
@@ -282,8 +282,14 @@ export const myTool = tool({
 ```typescript
 tools: {
   myTool,
-  getWeather,
-  createDocument,
+  createDocument: createDocument({
+    session: session.session,
+    dataStream,
+  }),
+  updateDocument: updateDocument({
+    session: session.session,
+    dataStream,
+  }),
   // ...
 }
 ```
