@@ -20,7 +20,7 @@ export async function generateTitleFromUserMessage({
 }: {
   message: UIMessage;
 }) {
-  const { text: title } = await generateText({
+  const { text: rawTitle } = await generateText({
     model: myProvider.languageModel("title-model"),
     system: `\n
     - you will generate a short title based on the first message a user begins a conversation with
@@ -29,6 +29,9 @@ export async function generateTitleFromUserMessage({
     - do not use quotes or colons`,
     prompt: JSON.stringify(message),
   });
+
+  // Strip any <think>...</think> tags from title
+  const title = rawTitle.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
 
   return title;
 }
