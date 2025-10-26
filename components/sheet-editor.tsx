@@ -2,7 +2,7 @@
 
 import { useTheme } from "next-themes";
 import { parse, unparse } from "papaparse";
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import DataGrid, { textEditor } from "react-data-grid";
 import { cn } from "@/lib/utils";
 
@@ -22,10 +22,8 @@ const MIN_COLS = 26;
 const PureSpreadsheetEditor = ({ content, saveContent }: SheetEditorProps) => {
   const { resolvedTheme } = useTheme();
 
-  const parseData = useMemo(() => {
-    if (!content) {
-      return new Array(MIN_ROWS).fill(new Array(MIN_COLS).fill(""));
-    }
+  let parseData: string[][];
+  if (content) {
     const result = parse<string[]>(content, { skipEmptyLines: true });
 
     const paddedData = result.data.map((row) => {
@@ -40,52 +38,48 @@ const PureSpreadsheetEditor = ({ content, saveContent }: SheetEditorProps) => {
       paddedData.push(new Array(MIN_COLS).fill(""));
     }
 
-    return paddedData;
-  }, [content]);
+    parseData = paddedData;
+  } else {
+    parseData = new Array(MIN_ROWS).fill(new Array(MIN_COLS).fill(""));
+  }
 
-  const columns = useMemo(() => {
-    const rowNumberColumn = {
-      key: "rowNumber",
-      name: "",
-      frozen: true,
-      width: 50,
-      renderCell: ({ rowIdx }: { rowIdx: number }) => rowIdx + 1,
-      cellClass: "border-t border-r dark:bg-zinc-950 dark:text-zinc-50",
-      headerCellClass: "border-t border-r dark:bg-zinc-900 dark:text-zinc-50",
+  const rowNumberColumn = {
+    key: "rowNumber",
+    name: "",
+    frozen: true,
+    width: 50,
+    renderCell: ({ rowIdx }: { rowIdx: number }) => rowIdx + 1,
+    cellClass: "border-t border-r dark:bg-zinc-950 dark:text-zinc-50",
+    headerCellClass: "border-t border-r dark:bg-zinc-900 dark:text-zinc-50",
+  };
+
+  const dataColumns = Array.from({ length: MIN_COLS }, (_, i) => ({
+    key: i.toString(),
+    name: String.fromCharCode(65 + i),
+    renderEditCell: textEditor,
+    width: 120,
+    cellClass: cn("border-t dark:bg-zinc-950 dark:text-zinc-50", {
+      "border-l": i !== 0,
+    }),
+    headerCellClass: cn("border-t dark:bg-zinc-900 dark:text-zinc-50", {
+      "border-l": i !== 0,
+    }),
+  }));
+
+  const columns = [rowNumberColumn, ...dataColumns];
+
+  const initialRows = parseData.map((row, rowIndex) => {
+    const rowData: any = {
+      id: rowIndex,
+      rowNumber: rowIndex + 1,
     };
 
-    const dataColumns = Array.from({ length: MIN_COLS }, (_, i) => ({
-      key: i.toString(),
-      name: String.fromCharCode(65 + i),
-      renderEditCell: textEditor,
-      width: 120,
-      cellClass: cn("border-t dark:bg-zinc-950 dark:text-zinc-50", {
-        "border-l": i !== 0,
-      }),
-      headerCellClass: cn("border-t dark:bg-zinc-900 dark:text-zinc-50", {
-        "border-l": i !== 0,
-      }),
-    }));
+    columns.slice(1).forEach((col, colIndex) => {
+      rowData[col.key] = row[colIndex] || "";
+    });
 
-    return [rowNumberColumn, ...dataColumns];
-  }, []);
-
-  const initialRows = useMemo(
-    () =>
-      parseData.map((row, rowIndex) => {
-        const rowData: any = {
-          id: rowIndex,
-          rowNumber: rowIndex + 1,
-        };
-
-        columns.slice(1).forEach((col, colIndex) => {
-          rowData[col.key] = row[colIndex] || "";
-        });
-
-        return rowData;
-      }),
-    [parseData, columns]
-  );
+    return rowData;
+  });
 
   const [localRows, setLocalRows] = useState(initialRows);
 
