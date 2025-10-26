@@ -27,7 +27,7 @@ import { getWeather } from "@/lib/ai/tools/get-weather";
 import { requestSuggestions } from "@/lib/ai/tools/request-suggestions";
 import { updateDocument } from "@/lib/ai/tools/update-document";
 import { auth } from "@/lib/auth";
-import { isProductionEnvironment } from "@/lib/constants";
+import { isTelemetryEnabled } from "@/lib/constants";
 import {
   createStreamId,
   deleteChatById,
@@ -209,7 +209,7 @@ export async function POST(request: Request) {
             }),
           },
           experimental_telemetry: {
-            isEnabled: isProductionEnvironment,
+            isEnabled: isTelemetryEnabled,
             functionId: "stream-text",
           },
           onFinish: async ({ usage }) => {
