@@ -17,14 +17,13 @@ export const myProvider = isTestEnvironment
   ? (() => {
       const {
         artifactModel,
-        chatModel,
         reasoningModel,
         titleModel,
       } = require("./models.mock");
       return customProvider({
         languageModels: {
-          "chat-model": chatModel,
-          "chat-model-reasoning": reasoningModel,
+          "chat-model": reasoningModel,
+          "gpt-oss:20b": reasoningModel,
           "title-model": titleModel,
           "artifact-model": artifactModel,
         },
@@ -32,9 +31,12 @@ export const myProvider = isTestEnvironment
     })()
   : customProvider({
       languageModels: {
-        "chat-model": ollama("qwen3:14b"),
-        "chat-model-reasoning": wrapLanguageModel({
+        "chat-model": wrapLanguageModel({
           model: ollama("qwen3:14b"),
+          middleware: extractReasoningMiddleware({ tagName: "think" }),
+        }),
+        "gpt-oss:20b": wrapLanguageModel({
+          model: ollama("gpt-oss:20b"),
           middleware: extractReasoningMiddleware({ tagName: "think" }),
         }),
         "title-model": ollama("qwen3:14b"),

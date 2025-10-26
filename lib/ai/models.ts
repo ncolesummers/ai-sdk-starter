@@ -9,14 +9,12 @@ export type ChatModel = {
 export const chatModels: ChatModel[] = [
   {
     id: "chat-model",
-    name: "Qwen3 Chat",
-    description:
-      "14B parameter model with strong reasoning and multimodal capabilities",
+    name: "Qwen3",
+    description: "14B parameter model with chain-of-thought reasoning",
   },
   {
-    id: "chat-model-reasoning",
-    name: "Qwen3 Reasoning",
-    description:
-      "Uses advanced chain-of-thought reasoning for complex problems",
+    id: "gpt-oss:20b",
+    name: "GPT-OSS",
+    description: "20B parameter open-source GPT model",
   },
 ];
