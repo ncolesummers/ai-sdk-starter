@@ -2,7 +2,7 @@
 import type { UseChatHelpers } from "@ai-sdk/react";
 import equal from "fast-deep-equal";
 import { motion } from "framer-motion";
-import { memo, useState } from "react";
+import { Activity, memo, useState } from "react";
 import { chatModels } from "@/lib/ai/models";
 import type { Vote } from "@/lib/db/schema";
 import type { ChatMessage } from "@/lib/types";
@@ -135,9 +135,9 @@ const PurePreviewMessage = ({
             }
 
             if (type === "text") {
-              if (mode === "view") {
-                return (
-                  <div key={key}>
+              return (
+                <div key={key}>
+                  <Activity mode={mode === "view" ? "visible" : "hidden"}>
                     <MessageContent
                       className={cn({
                         "w-fit break-words rounded-2xl px-3 py-2 text-right text-white":
@@ -154,29 +154,24 @@ const PurePreviewMessage = ({
                     >
                       <Response>{sanitizeText(part.text)}</Response>
                     </MessageContent>
-                  </div>
-                );
-              }
+                  </Activity>
 
-              if (mode === "edit") {
-                return (
-                  <div
-                    className="flex w-full flex-row items-start gap-3"
-                    key={key}
-                  >
-                    <div className="size-8" />
-                    <div className="min-w-0 flex-1">
-                      <MessageEditor
-                        key={message.id}
-                        message={message}
-                        regenerate={regenerate}
-                        setMessages={setMessages}
-                        setMode={setMode}
-                      />
+                  <Activity mode={mode === "edit" ? "visible" : "hidden"}>
+                    <div className="flex w-full flex-row items-start gap-3">
+                      <div className="size-8" />
+                      <div className="min-w-0 flex-1">
+                        <MessageEditor
+                          key={message.id}
+                          message={message}
+                          regenerate={regenerate}
+                          setMessages={setMessages}
+                          setMode={setMode}
+                        />
+                      </div>
                     </div>
-                  </div>
-                );
-              }
+                  </Activity>
+                </div>
+              );
             }
 
             if (type === "tool-createDocument") {
