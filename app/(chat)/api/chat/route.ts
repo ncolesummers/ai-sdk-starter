@@ -39,11 +39,14 @@ import {
   updateChatLastContextById,
 } from "@/lib/db/queries";
 import { ChatSDKError } from "@/lib/errors";
+import { createLogger } from "@/lib/logger";
 import type { ChatMessage } from "@/lib/types";
 import type { AppUsage } from "@/lib/usage";
 import { convertToUIMessages, generateUUID } from "@/lib/utils";
 import { generateTitleFromUserMessage } from "../../actions";
 import { type PostRequestBody, postRequestBodySchema } from "./schema";
+
+const logger = createLogger("api:chat");
 
 export const maxDuration = 60;
 
@@ -54,10 +57,9 @@ const getTokenlensCatalog = cache(
     try {
       return await fetchModels();
     } catch (err) {
-      console.warn(
-        "TokenLens: catalog fetch failed, using default catalog",
-        err
-      );
+      logger.warn("TokenLens: catalog fetch failed, using default catalog", {
+        error: err instanceof Error ? err.message : String(err),
+      });
       return; // tokenlens helpers will fall back to defaultCatalog
     }
   },
@@ -73,11 +75,12 @@ export function getStreamContext() {
       });
     } catch (error: any) {
       if (error.message.includes("REDIS_URL")) {
-        console.log(
-          " > Resumable streams are disabled due to missing REDIS_URL"
-        );
+        logger.info("Resumable streams disabled due to missing REDIS_URL");
       } else {
-        console.error(error);
+        logger.error("Failed to create resumable stream context", {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        });
       }
     }
   }
@@ -86,12 +89,18 @@ export function getStreamContext() {
 }
 
 export async function POST(request: Request) {
+  const requestStart = Date.now();
+  const correlationId = generateUUID();
   let requestBody: PostRequestBody;
 
   try {
     const json = await request.json();
     requestBody = postRequestBodySchema.parse(json);
-  } catch (_) {
+  } catch (error) {
+    logger.error("Invalid request body", {
+      correlationId,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return new ChatSDKError("bad_request:api").toResponse();
   }
 
@@ -113,10 +122,19 @@ export async function POST(request: Request) {
     });
 
     if (!session?.user) {
+      logger.warn("Unauthorized chat request", { correlationId });
       return new ChatSDKError("unauthorized:chat").toResponse();
     }
 
     const userType: UserType = (session.user as any).type || "regular";
+
+    logger.info("Chat request initiated", {
+      correlationId,
+      chatId: id,
+      userId: session.user.id,
+      modelId: selectedChatModel,
+      userType,
+    });
 
     const messageCount = await getMessageCountByUserId({
       id: session.user.id,
@@ -124,6 +142,12 @@ export async function POST(request: Request) {
     });
 
     if (messageCount > entitlementsByUserType[userType].maxMessagesPerDay) {
+      logger.warn("Rate limit exceeded", {
+        correlationId,
+        userId: session.user.id,
+        messageCount,
+        maxAllowed: entitlementsByUserType[userType].maxMessagesPerDay,
+      });
       return new ChatSDKError("rate_limit:chat").toResponse();
     }
 
@@ -131,6 +155,12 @@ export async function POST(request: Request) {
 
     if (chat) {
       if (chat.userId !== session.user.id) {
+        logger.warn("Forbidden chat access attempt", {
+          correlationId,
+          chatId: id,
+          requestingUserId: session.user.id,
+          chatOwnerId: chat.userId,
+        });
         return new ChatSDKError("forbidden:chat").toResponse();
       }
     } else {
@@ -178,20 +208,24 @@ export async function POST(request: Request) {
 
     const stream = createUIMessageStream({
       execute: ({ writer: dataStream }) => {
+        logger.debug("Initiating AI stream", {
+          correlationId,
+          chatId: id,
+          modelId: selectedChatModel,
+          messageCount: uiMessages.length,
+        });
+
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
-          system: systemPrompt({ selectedChatModel, requestHints }),
+          system: systemPrompt({ requestHints }),
           messages: convertToModelMessages(uiMessages),
           stopWhen: stepCountIs(5),
-          experimental_activeTools:
-            selectedChatModel === "chat-model-reasoning"
-              ? []
-              : [
-                  "getWeather",
-                  "createDocument",
-                  "updateDocument",
-                  "requestSuggestions",
-                ],
+          experimental_activeTools: [
+            "getWeather",
+            "createDocument",
+            "updateDocument",
+            "requestSuggestions",
+          ],
           experimental_transform: smoothStream({ chunking: "word" }),
           tools: {
             getWeather,
@@ -239,7 +273,11 @@ export async function POST(request: Request) {
               finalMergedUsage = { ...usage, ...summary, modelId } as AppUsage;
               dataStream.write({ type: "data-usage", data: finalMergedUsage });
             } catch (err) {
-              console.warn("TokenLens enrichment failed", err);
+              logger.warn("TokenLens enrichment failed", {
+                correlationId,
+                modelId: selectedChatModel,
+                error: err instanceof Error ? err.message : String(err),
+              });
               finalMergedUsage = usage;
               dataStream.write({ type: "data-usage", data: finalMergedUsage });
             }
@@ -274,11 +312,31 @@ export async function POST(request: Request) {
               context: finalMergedUsage,
             });
           } catch (err) {
-            console.warn("Unable to persist last usage for chat", id, err);
+            logger.warn("Unable to persist last usage for chat", {
+              correlationId,
+              chatId: id,
+              error: err instanceof Error ? err.message : String(err),
+            });
           }
         }
+
+        const requestDuration = Date.now() - requestStart;
+        logger.info("Chat request completed", {
+          correlationId,
+          chatId: id,
+          durationMs: requestDuration,
+          messagesGenerated: messages.length,
+        });
       },
-      onError: () => "Oops, an error occurred!",
+      onError: (error) => {
+        logger.error("Stream error occurred", {
+          correlationId,
+          chatId: id,
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+        return "Oops, an error occurred!";
+      },
     });
 
     // const streamContext = getStreamContext();
@@ -309,7 +367,14 @@ export async function POST(request: Request) {
       return new ChatSDKError("bad_request:activate_gateway").toResponse();
     }
 
-    console.error("Unhandled error in chat API:", error, { vercelId });
+    logger.error("Unhandled error in chat API", {
+      correlationId,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      vercelId,
+      chatId: requestBody?.id,
+      modelId: requestBody?.selectedChatModel,
+    });
     return new ChatSDKError("offline:chat").toResponse();
   }
 }
