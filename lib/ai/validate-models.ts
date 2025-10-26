@@ -21,8 +21,7 @@ type OllamaTagsResponse = {
  * @throws Error if validation fails in production
  */
 export async function validateModels(): Promise<void> {
-  const ollamaBaseUrl =
-    process.env.OLLAMA_BASE_URL || "http://localhost:11434";
+  const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
 
   try {
     logger.info("Validating configured models against Ollama instance", {
@@ -55,7 +54,8 @@ export async function validateModels(): Promise<void> {
 
     for (const chatModel of chatModels) {
       // Extract model name from ID (handles both "model-name" and "provider:model")
-      const modelId = chatModel.id === "chat-model" ? "qwen3:14b" : chatModel.id;
+      const modelId =
+        chatModel.id === "chat-model" ? "qwen3:14b" : chatModel.id;
 
       if (availableModels.has(modelId)) {
         validModels.push(modelId);
@@ -89,8 +89,7 @@ export async function validateModels(): Promise<void> {
       });
     }
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : String(error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
 
     logger.error("Model validation failed", {
       error: errorMessage,
