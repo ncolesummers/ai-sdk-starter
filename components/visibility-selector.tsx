@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -54,9 +54,8 @@ export function VisibilitySelector({
     initialVisibilityType: selectedVisibilityType,
   });
 
-  const selectedVisibility = useMemo(
-    () => visibilities.find((visibility) => visibility.id === visibilityType),
-    [visibilityType]
+  const selectedVisibility = visibilities.find(
+    (visibility) => visibility.id === visibilityType
   );
 
   return (
