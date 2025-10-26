@@ -55,7 +55,7 @@ export const login = async (
       return {
         status: "success",
         message: "Check your email for a magic link to sign in.",
-      };
+      } satisfies LoginActionState;
     } catch (error) {
       if (error instanceof z.ZodError) {
         span.setAttribute("auth.validation.failed", true);
@@ -72,7 +72,7 @@ export const login = async (
           })),
         });
 
-        return { status: "invalid_data" };
+        return { status: "invalid_data" } satisfies LoginActionState;
       }
 
       span.recordException(error as Error);
@@ -85,7 +85,10 @@ export const login = async (
 
       const errorMessage =
         error instanceof Error ? error.message : "Failed to send magic link.";
-      return { status: "failed", message: errorMessage };
+      return {
+        status: "failed",
+        message: errorMessage,
+      } satisfies LoginActionState;
     } finally {
       span.end();
     }
@@ -129,7 +132,7 @@ export const register = async (
       return {
         status: "success",
         message: "Check your email for a magic link to complete registration.",
-      };
+      } satisfies RegisterActionState;
     } catch (error) {
       if (error instanceof z.ZodError) {
         span.setAttribute("auth.validation.failed", true);
@@ -146,7 +149,7 @@ export const register = async (
           })),
         });
 
-        return { status: "invalid_data" };
+        return { status: "invalid_data" } satisfies RegisterActionState;
       }
 
       span.recordException(error as Error);
@@ -159,7 +162,10 @@ export const register = async (
 
       const errorMessage =
         error instanceof Error ? error.message : "Failed to send magic link.";
-      return { status: "failed", message: errorMessage };
+      return {
+        status: "failed",
+        message: errorMessage,
+      } satisfies RegisterActionState;
     } finally {
       span.end();
     }
