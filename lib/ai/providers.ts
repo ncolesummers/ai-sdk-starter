@@ -1,10 +1,17 @@
-import { gateway } from "@ai-sdk/gateway";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import {
   customProvider,
   extractReasoningMiddleware,
   wrapLanguageModel,
 } from "ai";
 import { isTestEnvironment } from "../constants";
+
+// Create Ollama provider using OpenAI-compatible API
+// This provides maximum portability and works with any OpenAI-compatible endpoint
+const ollama = createOpenAICompatible({
+  name: "ollama",
+  baseURL: process.env.OLLAMA_BASE_URL || "http://localhost:11434/v1",
+});
 
 export const myProvider = isTestEnvironment
   ? (() => {
@@ -25,12 +32,12 @@ export const myProvider = isTestEnvironment
     })()
   : customProvider({
       languageModels: {
-        "chat-model": gateway.languageModel("xai/grok-2-vision-1212"),
+        "chat-model": ollama("qwen3:14b"),
         "chat-model-reasoning": wrapLanguageModel({
-          model: gateway.languageModel("xai/grok-3-mini"),
+          model: ollama("qwen3:14b"),
           middleware: extractReasoningMiddleware({ tagName: "think" }),
         }),
-        "title-model": gateway.languageModel("xai/grok-2-1212"),
-        "artifact-model": gateway.languageModel("xai/grok-2-1212"),
+        "title-model": ollama("qwen3:14b"),
+        "artifact-model": ollama("qwen3:14b"),
       },
     });
