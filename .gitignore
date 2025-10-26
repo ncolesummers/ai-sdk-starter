@@ -45,3 +45,6 @@ tsconfig.tsbuildinfo
 
 # MCP
 .mcp.json
+
+# NextJS
+next-env.d.ts
