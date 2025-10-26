@@ -98,8 +98,9 @@ export async function POST(request: NextRequest) {
 
       const sessionToken = crypto.randomUUID();
 
+      // Better Auth uses the `id` field as the session token (cookie value)
       await db.insert(session).values({
-        id: crypto.randomUUID(),
+        id: sessionToken,
         userId: testUser.id,
         expiresAt,
         token: sessionToken,
