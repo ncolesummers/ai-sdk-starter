@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import { unstable_serialize } from "swr/infinite";
 import { updateChatVisibility } from "@/app/(chat)/actions";
@@ -28,16 +27,13 @@ export function useChatVisibility({
     }
   );
 
-  const visibilityType = useMemo(() => {
-    if (!history) {
-      return localVisibility;
-    }
+  let visibilityType: VisibilityType;
+  if (history) {
     const chat = history.chats.find((currentChat) => currentChat.id === chatId);
-    if (!chat) {
-      return "private";
-    }
-    return chat.visibility;
-  }, [history, chatId, localVisibility]);
+    visibilityType = chat ? chat.visibility : "private";
+  } else {
+    visibilityType = localVisibility;
+  }
 
   const setVisibilityType = (updatedVisibilityType: VisibilityType) => {
     setLocalVisibility(updatedVisibilityType);

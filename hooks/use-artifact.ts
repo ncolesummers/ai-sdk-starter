@@ -45,12 +45,7 @@ export function useArtifact() {
     }
   );
 
-  const artifact = useMemo(() => {
-    if (!localArtifact) {
-      return initialArtifactData;
-    }
-    return localArtifact;
-  }, [localArtifact]);
+  const artifact = localArtifact || initialArtifactData;
 
   const setArtifact = useCallback(
     (updaterFn: UIArtifact | ((currentArtifact: UIArtifact) => UIArtifact)) => {
@@ -77,13 +72,10 @@ export function useArtifact() {
       }
     );
 
-  return useMemo(
-    () => ({
-      artifact,
-      setArtifact,
-      metadata: localArtifactMetadata,
-      setMetadata: setLocalArtifactMetadata,
-    }),
-    [artifact, setArtifact, localArtifactMetadata, setLocalArtifactMetadata]
-  );
+  return {
+    artifact,
+    setArtifact,
+    metadata: localArtifactMetadata,
+    setMetadata: setLocalArtifactMetadata,
+  };
 }
