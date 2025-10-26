@@ -14,7 +14,7 @@ import {
 import type { AppUsage } from "../usage";
 
 export const user = pgTable("User", {
-  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  id: text("id").primaryKey(),
   email: varchar("email", { length: 64 }).notNull(),
   emailVerified: boolean("emailVerified").notNull().default(false),
   name: text("name"),
@@ -26,12 +26,14 @@ export const user = pgTable("User", {
 export type User = InferSelectModel<typeof user>;
 
 export const session = pgTable("Session", {
-  id: uuid("id").primaryKey().notNull().defaultRandom(),
-  userId: uuid("userId")
+  id: text("id").primaryKey(),
+  userId: text("userId")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
   token: text("token").notNull().unique(),
   expiresAt: timestamp("expiresAt").notNull(),
+  ipAddress: text("ipAddress"),
+  userAgent: text("userAgent"),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
   updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 });
@@ -39,8 +41,8 @@ export const session = pgTable("Session", {
 export type Session = InferSelectModel<typeof session>;
 
 export const account = pgTable("Account", {
-  id: uuid("id").primaryKey().notNull().defaultRandom(),
-  userId: uuid("userId")
+  id: text("id").primaryKey(),
+  userId: text("userId")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
   accountId: text("accountId").notNull(),
@@ -59,7 +61,7 @@ export const account = pgTable("Account", {
 export type Account = InferSelectModel<typeof account>;
 
 export const verification = pgTable("Verification", {
-  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  id: text("id").primaryKey(),
   identifier: text("identifier").notNull(),
   value: text("value").notNull(),
   expiresAt: timestamp("expiresAt").notNull(),
@@ -73,7 +75,7 @@ export const chat = pgTable("Chat", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
   createdAt: timestamp("createdAt").notNull(),
   title: text("title").notNull(),
-  userId: uuid("userId")
+  userId: text("userId")
     .notNull()
     .references(() => user.id),
   visibility: varchar("visibility", { enum: ["public", "private"] })
@@ -159,7 +161,7 @@ export const document = pgTable(
     kind: varchar("text", { enum: ["text", "code", "image", "sheet"] })
       .notNull()
       .default("text"),
-    userId: uuid("userId")
+    userId: text("userId")
       .notNull()
       .references(() => user.id),
   },
@@ -180,7 +182,7 @@ export const suggestion = pgTable(
     suggestedText: text("suggestedText").notNull(),
     description: text("description"),
     isResolved: boolean("isResolved").notNull().default(false),
-    userId: uuid("userId")
+    userId: text("userId")
       .notNull()
       .references(() => user.id),
     createdAt: timestamp("createdAt").notNull(),

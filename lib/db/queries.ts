@@ -51,18 +51,8 @@ export async function getUser(email: string): Promise<User[]> {
   }
 }
 
-export async function createUser(email: string) {
-  try {
-    return await db.insert(user).values({
-      email,
-      emailVerified: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-  } catch (_error) {
-    throw new ChatSDKError("bad_request:database", "Failed to create user");
-  }
-}
+// User creation is handled by Better Auth - users are created automatically
+// during authentication flows (magic link, OAuth, etc.)
 
 export async function saveChat({
   id,
