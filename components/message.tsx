@@ -3,6 +3,7 @@ import type { UseChatHelpers } from "@ai-sdk/react";
 import equal from "fast-deep-equal";
 import { motion } from "framer-motion";
 import { memo, useState } from "react";
+import { chatModels } from "@/lib/ai/models";
 import type { Vote } from "@/lib/db/schema";
 import type { ChatMessage } from "@/lib/types";
 import { cn, sanitizeText } from "@/lib/utils";
@@ -25,6 +26,11 @@ import { MessageReasoning } from "./message-reasoning";
 import { PreviewAttachment } from "./preview-attachment";
 import { Weather } from "./weather";
 
+const getModelDisplayName = (modelId: string): string => {
+  const model = chatModels.find((m) => m.id === modelId);
+  return model?.name ?? modelId;
+};
+
 const PurePreviewMessage = ({
   chatId,
   message,
@@ -34,6 +40,7 @@ const PurePreviewMessage = ({
   regenerate,
   isReadonly,
   requiresScrollPadding,
+  selectedModelId,
 }: {
   chatId: string;
   message: ChatMessage;
@@ -43,6 +50,7 @@ const PurePreviewMessage = ({
   regenerate: UseChatHelpers<ChatMessage>["regenerate"];
   isReadonly: boolean;
   requiresScrollPadding: boolean;
+  selectedModelId?: string;
 }) => {
   const [mode, setMode] = useState<"view" | "edit">("view");
 
@@ -67,8 +75,15 @@ const PurePreviewMessage = ({
         })}
       >
         {message.role === "assistant" && (
-          <div className="-mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-background ring-1 ring-border">
-            <SparklesIcon size={14} />
+          <div className="-mt-1 flex flex-col items-center gap-1">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-background ring-1 ring-border">
+              <SparklesIcon size={14} />
+            </div>
+            {selectedModelId && (
+              <span className="text-[10px] text-muted-foreground leading-none">
+                {getModelDisplayName(selectedModelId)}
+              </span>
+            )}
           </div>
         )}
 
