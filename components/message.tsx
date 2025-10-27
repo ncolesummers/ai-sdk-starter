@@ -12,6 +12,8 @@ import { DocumentToolResult } from "./document";
 import { DocumentPreview } from "./document-preview";
 import { MessageContent } from "./elements/message";
 import { Response } from "./elements/response";
+import { TavilyExtractResult } from "./elements/tavily-extract-result";
+import { TavilySearchResult } from "./elements/tavily-search-result";
 import {
   Tool,
   ToolContent,
@@ -248,6 +250,56 @@ const PurePreviewMessage = ({
                             />
                           )
                         }
+                      />
+                    )}
+                  </ToolContent>
+                </Tool>
+              );
+            }
+
+            if (type === "tool-tavilySearch") {
+              const { toolCallId, state } = part;
+
+              return (
+                <Tool defaultOpen={true} key={toolCallId}>
+                  <ToolHeader state={state} type="tool-tavilySearch" />
+                  <ToolContent>
+                    {state === "input-available" && (
+                      <ToolInput input={part.input} />
+                    )}
+                    {state === "output-available" &&
+                      !("error" in part.output) && (
+                        <TavilySearchResult result={part.output} />
+                      )}
+                    {state === "output-available" && "error" in part.output && (
+                      <ToolOutput
+                        errorText={String(part.output.error)}
+                        output={null}
+                      />
+                    )}
+                  </ToolContent>
+                </Tool>
+              );
+            }
+
+            if (type === "tool-tavilyExtract") {
+              const { toolCallId, state } = part;
+
+              return (
+                <Tool defaultOpen={true} key={toolCallId}>
+                  <ToolHeader state={state} type="tool-tavilyExtract" />
+                  <ToolContent>
+                    {state === "input-available" && (
+                      <ToolInput input={part.input} />
+                    )}
+                    {state === "output-available" &&
+                      !("error" in part.output) && (
+                        <TavilyExtractResult result={part.output} />
+                      )}
+                    {state === "output-available" && "error" in part.output && (
+                      <ToolOutput
+                        errorText={String(part.output.error)}
+                        output={null}
                       />
                     )}
                   </ToolContent>

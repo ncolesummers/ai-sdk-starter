@@ -242,8 +242,8 @@ export async function POST(request: Request) {
               session: session.session,
               dataStream,
             }),
-            tavilySearch,
-            tavilyExtract,
+            tavilySearch: tavilySearch({ dataStream }),
+            tavilyExtract: tavilyExtract({ dataStream }),
           },
           experimental_telemetry: {
             isEnabled: isTelemetryEnabled,
