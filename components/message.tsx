@@ -140,7 +140,7 @@ const PurePreviewMessage = ({
                   <Activity mode={mode === "view" ? "visible" : "hidden"}>
                     <MessageContent
                       className={cn({
-                        "w-fit wrap-break-word rounded-2xl px-3 py-2 text-right text-white":
+                        "wrap-break-word w-fit rounded-2xl px-3 py-2 text-right text-white":
                           message.role === "user",
                         "bg-transparent px-0 py-0 text-left":
                           message.role === "assistant",

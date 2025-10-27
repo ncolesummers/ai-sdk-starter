@@ -258,6 +258,7 @@ This project uses **Ultracite** (Biome-based) for formatting and linting. Key ru
 
 **Optional**:
 - `OLLAMA_BASE_URL` - Ollama endpoint (default: `http://localhost:11434/v1`)
+- `TAVILY_API_KEY` - API key for Tavily web search and content extraction tools
 - `LOG_LEVEL` - Logging verbosity: DEBUG | INFO | WARN | ERROR
 - `OTEL_SERVICE_NAME` - Service name for telemetry
 - `OTEL_EXPORTER_OTLP_ENDPOINT` - OTEL collector endpoint (enables telemetry in K8s)
