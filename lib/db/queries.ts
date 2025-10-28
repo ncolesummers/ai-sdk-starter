@@ -37,8 +37,20 @@ import {
 // https://authjs.dev/reference/adapter/drizzle
 
 // biome-ignore lint: Forbidden non-null assertion.
-const client = postgres(process.env.POSTGRES_URL!);
+const client = postgres(process.env.POSTGRES_URL!, {
+  max: 10, // Limit connection pool size
+  idle_timeout: 20, // Close idle connections after 20 seconds
+  max_lifetime: 60 * 30, // Recycle connections after 30 minutes
+});
 export const db = drizzle(client);
+
+/**
+ * Close all database connections
+ * Should be called during graceful shutdown
+ */
+export async function closeDatabase(): Promise<void> {
+  await client.end({ timeout: 5 });
+}
 
 export async function getUser(email: string): Promise<User[]> {
   try {
