@@ -16,7 +16,8 @@ export type Surface =
   | "vote"
   | "document"
   | "suggestions"
-  | "activate_gateway";
+  | "activate_gateway"
+  | "admin";
 
 export type ErrorCode = `${ErrorType}:${Surface}`;
 
@@ -33,6 +34,7 @@ export const visibilityBySurface: Record<Surface, ErrorVisibility> = {
   document: "response",
   suggestions: "response",
   activate_gateway: "response",
+  admin: "response",
 };
 
 export class ChatSDKError extends Error {
@@ -111,6 +113,13 @@ export function getMessageByErrorCode(errorCode: ErrorCode): string {
       return "You need to sign in to view this document. Please sign in and try again.";
     case "bad_request:document":
       return "The request to create or update the document was invalid. Please check your input and try again.";
+
+    case "unauthorized:admin":
+      return "Admin access required. Please contact your administrator if you believe this is an error.";
+    case "forbidden:admin":
+      return "You do not have permission to perform this admin operation.";
+    case "bad_request:admin":
+      return "The admin request was invalid. Please check your input and try again.";
 
     default:
       return "Something went wrong. Please try again later.";

@@ -46,7 +46,7 @@ export type CustomUIDataTypes = {
   clear: null;
   finish: null;
   usage: AppUsage;
-  tavilySearchResult: {
+  tavilySearchResult?: {
     query: string;
     resultsCount: number;
     responseTime: number;
@@ -62,7 +62,7 @@ export type CustomUIDataTypes = {
       description?: string;
     }>;
   };
-  tavilyExtractResult: {
+  tavilyExtractResult?: {
     successCount: number;
     failureCount: number;
     responseTime: number;
