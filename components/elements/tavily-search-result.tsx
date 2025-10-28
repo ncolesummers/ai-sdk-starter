@@ -31,6 +31,10 @@ export const TavilySearchResult = ({ result }: TavilySearchResultProps) => {
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
+  if (!result) {
+    return null;
+  }
+
   const copyAllResults = async () => {
     const allText = result.results
       .map(

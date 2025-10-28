@@ -16,10 +16,11 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import useSWR from "swr";
 import { useLocalStorage, useWindowSize } from "usehooks-ts";
 import { saveChatModelAsCookie } from "@/app/(chat)/actions";
 import { SelectItem } from "@/components/ui/select";
-import { chatModels } from "@/lib/ai/models";
+import { type ChatModel, chatModels } from "@/lib/ai/models";
 import type { Attachment, ChatMessage } from "@/lib/types";
 import type { AppUsage } from "@/lib/usage";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,8 @@ import { PreviewAttachment } from "./preview-attachment";
 import { SuggestedActions } from "./suggested-actions";
 import { Button } from "./ui/button";
 import type { VisibilityType } from "./visibility-selector";
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 function PureMultimodalInput({
   chatId,
@@ -380,14 +383,30 @@ function PureModelSelectorCompact({
     setOptimisticModelId(selectedModelId);
   }, [selectedModelId]);
 
-  const selectedModel = chatModels.find(
+  // Fetch active models from API
+  const { data } = useSWR<{
+    models: ChatModel[];
+    defaultModelId: string;
+  }>("/api/models", fetcher, {
+    fallbackData: {
+      models: chatModels,
+      defaultModelId: selectedModelId,
+    },
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  });
+
+  // Use fetched models or fall back to static models
+  const availableModels = data?.models || chatModels;
+
+  const selectedModel = availableModels.find(
     (model) => model.id === optimisticModelId
   );
 
   return (
     <PromptInputModelSelect
       onValueChange={(modelName) => {
-        const model = chatModels.find((m) => m.name === modelName);
+        const model = availableModels.find((m) => m.name === modelName);
         if (model) {
           setOptimisticModelId(model.id);
           onModelChange?.(model.id);
@@ -410,7 +429,7 @@ function PureModelSelectorCompact({
       </Trigger>
       <PromptInputModelSelectContent className="min-w-[260px] p-0">
         <div className="flex flex-col gap-px">
-          {chatModels.map((model) => (
+          {availableModels.map((model) => (
             <SelectItem key={model.id} value={model.name}>
               <div className="truncate font-medium text-xs">{model.name}</div>
               <div className="mt-px truncate text-[10px] text-muted-foreground leading-tight">

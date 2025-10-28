@@ -31,6 +31,10 @@ export const TavilyExtractResult = ({ result }: TavilyExtractResultProps) => {
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
+  if (!result) {
+    return null;
+  }
+
   return (
     <div className="space-y-2 p-4">
       <div className="flex items-center justify-between">
