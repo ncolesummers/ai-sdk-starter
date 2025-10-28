@@ -19,9 +19,9 @@ import { fetchModels } from "tokenlens/fetch";
 import { getUsage } from "tokenlens/helpers";
 import type { VisibilityType } from "@/components/visibility-selector";
 import { entitlementsByUserType, type UserType } from "@/lib/ai/entitlements";
-import type { ChatModel } from "@/lib/ai/models";
+import { isModelEnabled } from "@/lib/ai/models.server";
 import { type RequestHints, systemPrompt } from "@/lib/ai/prompts";
-import { myProvider } from "@/lib/ai/providers";
+import { getProvider } from "@/lib/ai/providers";
 import { createDocument } from "@/lib/ai/tools/create-document";
 import { requestSuggestions } from "@/lib/ai/tools/request-suggestions";
 import { tavilyExtract } from "@/lib/ai/tools/tavily-extract";
@@ -114,7 +114,7 @@ export async function POST(request: Request) {
     }: {
       id: string;
       message: ChatMessage;
-      selectedChatModel: ChatModel["id"];
+      selectedChatModel: string;
       selectedVisibilityType: VisibilityType;
     } = requestBody;
 
@@ -151,6 +151,23 @@ export async function POST(request: Request) {
       });
       return new ChatSDKError("rate_limit:chat").toResponse();
     }
+
+    // Validate that the selected model is enabled
+    const modelEnabled = await isModelEnabled(selectedChatModel);
+    if (!modelEnabled) {
+      logger.warn("Attempted to use disabled model", {
+        correlationId,
+        userId: session.user.id,
+        modelId: selectedChatModel,
+      });
+      return new ChatSDKError(
+        "bad_request:chat",
+        "The selected model is not available"
+      ).toResponse();
+    }
+
+    // Get the dynamic provider
+    const provider = await getProvider();
 
     const chat = await getChatById({ id });
 
@@ -217,7 +234,7 @@ export async function POST(request: Request) {
         });
 
         const result = streamText({
-          model: myProvider.languageModel(selectedChatModel),
+          model: provider.languageModel(selectedChatModel),
           system: systemPrompt({ requestHints }),
           messages: convertToModelMessages(uiMessages),
           stopWhen: stepCountIs(5),
@@ -252,8 +269,7 @@ export async function POST(request: Request) {
           onFinish: async ({ usage }) => {
             try {
               const providers = await getTokenlensCatalog();
-              const modelId =
-                myProvider.languageModel(selectedChatModel).modelId;
+              const modelId = provider.languageModel(selectedChatModel).modelId;
               if (!modelId) {
                 finalMergedUsage = usage;
                 dataStream.write({
