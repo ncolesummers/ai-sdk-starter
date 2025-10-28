@@ -66,7 +66,7 @@ const transport = tracer.startActiveSpan(
   }
 );
 
-logger.info("Creating Better Auth instance...");
+logger.debug("Creating Better Auth instance...");
 
 export const auth = tracer.startActiveSpan(
   "auth.betterauth.initialize",
@@ -115,21 +115,21 @@ export const auth = tracer.startActiveSpan(
                       to: email,
                       subject: "Sign in to AI Chatbot",
                       html: `
-            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2>Sign in to AI Chatbot</h2>
-              <p>Click the link below to sign in to your account:</p>
-              <a href="${url}" style="display: inline-block; padding: 12px 24px; background-color: #0070f3; color: #ffffff; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: 500;">
-                Sign In
-              </a>
-              <p style="color: #666; font-size: 14px;">
-                This link will expire in 10 minutes. If you didn't request this email, you can safely ignore it.
-              </p>
-              <p style="color: #999; font-size: 12px; margin: 40px 0;">
-                Or copy and paste this URL into your browser:<br/>
-                <span style="color: #0070f3;">${url}</span>
-              </p>
-            </div>
-          `,
+                        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                          <h2>Sign in to AI Chatbot</h2>
+                          <p>Click the link below to sign in to your account:</p>
+                          <a href="${url}" style="display: inline-block; padding: 12px 24px; background-color: #0070f3; color: #ffffff; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: 500;">
+                            Sign In
+                          </a>
+                          <p style="color: #666; font-size: 14px;">
+                            This link will expire in 10 minutes. If you didn't request this email, you can safely ignore it.
+                          </p>
+                          <p style="color: #999; font-size: 12px; margin: 40px 0;">
+                            Or copy and paste this URL into your browser:<br/>
+                            <span style="color: #0070f3;">${url}</span>
+                          </p>
+                        </div>
+                      `,
                       text: `Sign in to AI Chatbot\n\nClick the link below to sign in:\n${url}\n\nThis link will expire in 10 minutes.`,
                     });
 
