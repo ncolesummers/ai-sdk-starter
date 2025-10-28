@@ -46,8 +46,16 @@ This app uses **Next.js 16 App Router with route groups** for clean separation:
 - `app/api/` - General API routes
   - `/health` - Health check for K8s probes
   - `/test-auth` - Auth diagnostics
+  - `/models` - Active models list for model selector
+  - `/admin/ollama/*` - Admin API for Ollama configuration and model management
 
-**Key Pattern**: Route groups `(auth)` and `(chat)` don't appear in URLs but enforce layout/auth boundaries.
+- `app/(admin)/` - Admin panel (requires admin privileges)
+  - `/admin` - Admin dashboard with system overview
+  - `/admin/ollama` - Ollama server configuration
+  - `/admin/ollama/models` - Model management (enable/disable, display names, defaults)
+  - Admin access controlled by `ADMIN_EMAILS` environment variable
+
+**Key Pattern**: Route groups `(auth)`, `(chat)`, and `(admin)` don't appear in URLs but enforce layout/auth boundaries.
 
 ### AI Streaming Architecture
 
@@ -126,6 +134,23 @@ Verification (magic link tokens)
 - Custom `ChatSDKError` for typed error handling
 - Drizzle ORM with type-safe results via `InferSelectModel`
 
+**Connection Management**:
+- postgres.js connection pool with lifecycle configuration:
+  - `max: 10` - Limits connection pool size
+  - `idle_timeout: 20` - Auto-closes idle connections after 20 seconds
+  - `max_lifetime: 60 * 30` - Recycles connections after 30 minutes
+- Graceful shutdown handler (`lib/shutdown.ts`):
+  - Listens for SIGTERM and SIGINT signals
+  - Closes database connections with 5-second timeout
+  - Prevents hung processes on dev server shutdown
+  - Registered in `instrumentation.ts` during app startup
+- `closeDatabase()` function available for explicit cleanup
+
+**Dev Server Shutdown**:
+- Press `Ctrl+C` to gracefully shutdown the dev server
+- Database connections will be closed automatically
+- Process exits cleanly without hanging
+
 ### Observability
 
 **OpenTelemetry Integration**:
@@ -170,25 +195,32 @@ logger.info("Operation started", { userId: "123" });
 ## Key Patterns
 
 ### Model Selection
+
+**Dynamic Configuration**: Models are now configured through the admin panel (`/admin/ollama/models`) and stored in the database. The system automatically:
+- Detects models from Ollama via "Discover Models"
+- Validates requests against enabled models only
+- Disables tools for models marked as "reasoning" models
+
 ```typescript
-// lib/ai/models.ts
+// lib/ai/models.ts (fallback for UI only)
 chatModels = [
   { id: "chat-model", name: "Qwen3 Chat" },
-  { id: "chat-model-reasoning", name: "Qwen3 Reasoning" }
+  { id: "gpt-oss:20b", name: "GPT-OSS" }
 ]
 
-// Tools disabled for reasoning model to prevent early termination
-experimental_activeTools: selectedChatModel === "chat-model-reasoning"
-  ? []
-  : ["createDocument", "updateDocument", "requestSuggestions"]
+// Actual model list comes from database via getActiveModels() in lib/ai/models.server.ts
+// Tools automatically disabled based on model's "reasoning" flag in database
 ```
 
 ### Entitlements & Rate Limiting
+
+**Model Access**: Set to `"all"` to allow all admin-enabled models, or specify an array of model IDs for restricted access (useful for paid tiers).
+
 ```typescript
 // lib/ai/entitlements.ts
 entitlementsByUserType.regular = {
   maxMessagesPerDay: 100,
-  availableChatModelIds: ["chat-model", "chat-model-reasoning"]
+  availableChatModelIds: "all"  // Allows all models enabled via admin panel
 }
 ```
 
@@ -257,7 +289,8 @@ This project uses **Ultracite** (Biome-based) for formatting and linting. Key ru
 - Email config: `EMAIL_SERVER_HOST`, `EMAIL_SERVER_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM`
 
 **Optional**:
-- `OLLAMA_BASE_URL` - Ollama endpoint (default: `http://localhost:11434/v1`)
+- `OLLAMA_BASE_URL` - Ollama endpoint (default: `http://localhost:11434/v1`) - Can be overridden via Admin Panel
+- `ADMIN_EMAILS` - Comma-separated list of admin email addresses (e.g., `admin@example.com,manager@example.com`)
 - `TAVILY_API_KEY` - API key for Tavily web search and content extraction tools
 - `LOG_LEVEL` - Logging verbosity: DEBUG | INFO | WARN | ERROR
 - `OTEL_SERVICE_NAME` - Service name for telemetry
@@ -367,6 +400,112 @@ customProvider({
 ```
 
 Update model names in `lib/ai/models.ts` accordingly.
+
+## Admin Panel
+
+The admin panel provides a web interface for managing Ollama configuration and model settings without code changes.
+
+### Accessing the Admin Panel
+
+1. Set `ADMIN_EMAILS` environment variable with comma-separated email addresses:
+```bash
+ADMIN_EMAILS=admin@example.com,manager@example.com
+```
+
+2. Sign in to the application with an admin email address
+
+3. Navigate to `/admin` to access the admin dashboard
+
+**Note**: Only users with email addresses listed in `ADMIN_EMAILS` can access the admin panel.
+
+### Admin Features
+
+#### Ollama Configuration (`/admin/ollama`)
+
+**Change Ollama Server URL**:
+- Update the Ollama base URL without restarting the server
+- Test connection before saving
+- Changes take effect within 30 seconds (due to provider caching)
+- Non-localhost URLs must use HTTPS for security
+
+**Configuration Flow**:
+1. Enter new Ollama URL
+2. Click "Test Connection" to verify
+3. Click "Save Configuration" to apply changes
+4. Changes propagate within 30 seconds
+
+#### Model Management (`/admin/ollama/models`)
+
+**Discover Models**:
+- Click "Discover Models" to automatically detect models from Ollama server
+- New models are added as disabled by default
+
+**Configure Models**:
+- **Display Name**: Set user-friendly names shown in the model selector
+- **Enabled**: Control which models appear in the UI
+- **Default**: Set which model is selected by default (exactly one required)
+- **Reasoning**: Disable tools for reasoning models (improves problem-solving)
+
+**Validation Rules**:
+- At least one model must be enabled
+- Exactly one enabled model must be set as default
+- Cannot disable the default model (set another as default first)
+- All enabled models must have display names
+
+**Changes take effect within 30 seconds** due to configuration caching.
+
+### Technical Architecture
+
+**Configuration Storage**:
+- Settings stored in `Config` database table (key-value JSONB)
+- In-memory cache with 30-second TTL
+- Falls back to `OLLAMA_BASE_URL` environment variable if not configured
+
+**Provider System**:
+- Dynamic provider created on-demand via `getProvider()`
+- Provider cache with 30-second TTL
+- Automatic cache invalidation on configuration changes
+
+**Model Validation**:
+- Chat API validates selected model is enabled before processing
+- Returns error if model is disabled or not found
+- Tools automatically disabled for reasoning models
+
+**Security**:
+- Admin routes protected by `requireAdmin()` middleware
+- All configuration changes logged with admin email
+- URL validation (HTTPS required for non-localhost)
+
+### Example Admin Workflow
+
+**Scenario**: Add a new reasoning model and make it the default
+
+1. Navigate to `/admin/ollama`
+2. Verify Ollama URL is correct and test connection
+3. Navigate to `/admin/ollama/models`
+4. Click "Discover Models" to detect new models
+5. Find the new model in the table
+6. Set "Display Name" to something user-friendly (e.g., "Qwen3 Reasoning")
+7. Check "Enabled" checkbox
+8. Check "Reasoning" checkbox
+9. Select the "Default" radio button
+10. Click "Save Configuration"
+11. Changes take effect within 30 seconds
+
+**Result**: Users will now see the new model in the model selector, and it will be selected by default. Tools will be automatically disabled for this model due to the reasoning flag.
+
+### Admin API Endpoints
+
+For programmatic access:
+
+- `GET /api/admin/ollama/config` - Get current configuration
+- `POST /api/admin/ollama/config` - Update Ollama URL
+- `PUT /api/admin/ollama/config` - Update model configurations
+- `GET /api/admin/ollama/models` - Fetch available models from Ollama
+- `POST /api/admin/ollama/models` - Fetch models from specific URL
+- `POST /api/admin/ollama/test` - Test connection to Ollama server
+
+All admin API endpoints require authentication and admin privileges.
 
 ## Deployment
 
