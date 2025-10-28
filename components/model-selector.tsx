@@ -1,6 +1,7 @@
 "use client";
 
 import { startTransition, useOptimistic, useState } from "react";
+import useSWR from "swr";
 import { saveChatModelAsCookie } from "@/app/(chat)/actions";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,10 +11,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { entitlementsByUserType, type UserType } from "@/lib/ai/entitlements";
-import { chatModels } from "@/lib/ai/models";
+import { type ChatModel, chatModels } from "@/lib/ai/models";
 import type { SessionWithUser } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { CheckCircleFillIcon, ChevronDownIcon } from "./icons";
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export function ModelSelector({
   session,
@@ -27,13 +30,34 @@ export function ModelSelector({
   const [optimisticModelId, setOptimisticModelId] =
     useOptimistic(selectedModelId);
 
+  // Fetch active models from API
+  const { data } = useSWR<{
+    models: ChatModel[];
+    defaultModelId: string;
+  }>("/api/models", fetcher, {
+    fallbackData: {
+      models: chatModels,
+      defaultModelId: selectedModelId,
+    },
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  });
+
   const userType: UserType =
     ((session.user as any).type as UserType) || "regular";
   const { availableChatModelIds } = entitlementsByUserType[userType];
 
-  const availableChatModels = chatModels.filter((chatModel) =>
-    availableChatModelIds.includes(chatModel.id)
-  );
+  // Use fetched models or fall back to static models
+  const allModels = data?.models || chatModels;
+
+  // Filter models based on user entitlements
+  // If entitlement is "all", show all enabled models from admin panel
+  const availableChatModels =
+    availableChatModelIds === "all"
+      ? allModels
+      : allModels.filter((chatModel) =>
+          availableChatModelIds.includes(chatModel.id)
+        );
 
   const selectedChatModel = availableChatModels.find(
     (chatModel) => chatModel.id === optimisticModelId
