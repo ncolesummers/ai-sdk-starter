@@ -79,6 +79,68 @@ function getTraceContext(): { traceId?: string; spanId?: string } {
 }
 
 /**
+ * Serialize an Error object to a plain object with all properties
+ * This is necessary because Error objects don't serialize properly with JSON.stringify()
+ */
+function serializeError(error: Error): Record<string, unknown> {
+  const serialized: Record<string, unknown> = {
+    name: error.name,
+    message: error.message,
+    stack: error.stack,
+  };
+
+  // Include error.cause if present (recursively serialize if it's also an Error)
+  if (error.cause !== undefined) {
+    serialized.cause =
+      error.cause instanceof Error
+        ? serializeError(error.cause)
+        : error.cause;
+  }
+
+  // Include any custom enumerable properties
+  for (const key of Object.getOwnPropertyNames(error)) {
+    if (
+      key !== "name" &&
+      key !== "message" &&
+      key !== "stack" &&
+      key !== "cause"
+    ) {
+      serialized[key] = (error as Record<string, unknown>)[key];
+    }
+  }
+
+  return serialized;
+}
+
+/**
+ * Deep serialize data, converting any Error objects to plain objects
+ * This ensures errors are visible in logs instead of appearing as {}
+ */
+function serializeData(data: unknown): unknown {
+  // Handle Error objects
+  if (data instanceof Error) {
+    return serializeError(data);
+  }
+
+  // Handle arrays
+  if (Array.isArray(data)) {
+    return data.map((item) => serializeData(item));
+  }
+
+  // Handle plain objects
+  if (data && typeof data === "object") {
+    const serialized: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data)) {
+      serialized[key] = serializeData(value);
+    }
+    return serialized;
+  }
+
+  // Return primitives as-is
+  return data;
+}
+
+/**
  * Format log entry for console output (development)
  */
 function formatPretty(entry: LogEntry): string {
@@ -146,7 +208,8 @@ export class Logger {
     };
 
     if (data !== undefined) {
-      entry.data = data;
+      // Serialize any Error objects in the data before logging
+      entry.data = serializeData(data);
     }
 
     const formatted = config.prettyPrint

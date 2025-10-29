@@ -7,10 +7,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getOllamaBaseUrl } from "@/lib/config/ollama-config";
+import {
+  getOllamaApiFormat,
+  getOllamaBaseUrl,
+} from "@/lib/config/ollama-config";
 
 export default async function OllamaConfigPage() {
   const baseUrl = await getOllamaBaseUrl();
+  const apiFormat = await getOllamaApiFormat();
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
@@ -35,7 +39,7 @@ export default async function OllamaConfigPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <OllamaConfigForm initialUrl={baseUrl} />
+          <OllamaConfigForm initialFormat={apiFormat} initialUrl={baseUrl} />
         </CardContent>
       </Card>
 
@@ -53,10 +57,18 @@ export default async function OllamaConfigPage() {
               </p>
             </div>
             <div>
+              <p className="font-medium text-sm">API Format</p>
+              <p className="mt-1 text-muted-foreground text-sm">
+                {apiFormat === "native"
+                  ? "Native Ollama API (/api/tags)"
+                  : "OpenAI-compatible API (/v1/models)"}
+              </p>
+            </div>
+            <div>
               <p className="font-medium text-sm">Configuration Source</p>
               <p className="mt-1 text-muted-foreground text-sm">
                 {baseUrl ===
-                (process.env.OLLAMA_BASE_URL || "http://localhost:11434/v1")
+                (process.env.OLLAMA_BASE_URL || "http://localhost:11434")
                   ? "Environment variable (default)"
                   : "Database (admin configured)"}
               </p>

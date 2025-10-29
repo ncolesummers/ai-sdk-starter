@@ -89,10 +89,16 @@ export async function getProvider() {
   }
 
   // Get current Ollama base URL from configuration
-  const baseURL = await getOllamaBaseUrl();
+  const configuredURL = await getOllamaBaseUrl();
+
+  // AI SDK always expects OpenAI-compatible format (/v1) for chat completions
+  // regardless of the API format used for model discovery
+  const baseURL = configuredURL.endsWith("/v1")
+    ? configuredURL
+    : `${configuredURL}/v1`;
 
   // Create new provider with dynamic models from database
-  logger.debug("Creating provider instance", { baseURL });
+  logger.debug("Creating provider instance", { baseURL, configuredURL });
   const provider = await createOllamaProvider(baseURL);
 
   return provider;

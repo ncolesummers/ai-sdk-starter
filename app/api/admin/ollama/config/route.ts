@@ -5,8 +5,10 @@ import { auth } from "@/lib/auth";
 import type { ModelConfig } from "@/lib/config/ollama-config";
 import {
   getModelConfigs,
+  getOllamaApiFormat,
   getOllamaBaseUrl,
   setModelConfigs,
+  setOllamaApiFormat,
   setOllamaBaseUrl,
   testOllamaConnection,
 } from "@/lib/config/ollama-config";
@@ -34,6 +36,7 @@ const updateUrlSchema = z.object({
       },
       { message: "Non-localhost URLs must use HTTPS" }
     ),
+  format: z.enum(["native", "openai"]).optional(),
   testConnection: z.boolean().default(true),
 });
 
@@ -71,6 +74,7 @@ export async function GET() {
     // Get current configuration
     const baseUrl = await getOllamaBaseUrl();
     const modelConfigs = await getModelConfigs();
+    const apiFormat = await getOllamaApiFormat();
 
     logger.info("Admin fetched Ollama configuration", {
       email: session.user.email,
@@ -79,6 +83,7 @@ export async function GET() {
     return Response.json({
       baseUrl,
       modelConfigs,
+      apiFormat,
     });
   } catch (error) {
     if (error instanceof ChatSDKError) {
@@ -113,14 +118,24 @@ export async function POST(request: Request) {
 
     // Parse and validate request body
     const body = await request.json();
-    const { url, testConnection } = updateUrlSchema.parse(body);
+    const { url, format, testConnection } = updateUrlSchema.parse(body);
 
-    // Normalize URL (ensure it ends with /v1)
-    const normalizedUrl = url.endsWith("/v1") ? url : `${url}/v1`;
+    // Get current API format if not provided
+    const apiFormat = format || (await getOllamaApiFormat());
+
+    // Normalize URL based on API format
+    let normalizedUrl: string;
+    if (apiFormat === "openai") {
+      // For OpenAI format, ensure URL ends with /v1
+      normalizedUrl = url.endsWith("/v1") ? url : `${url}/v1`;
+    } else {
+      // For native format, remove /v1 if present
+      normalizedUrl = url.endsWith("/v1") ? url.slice(0, -3) : url;
+    }
 
     // Test connection if requested
     if (testConnection) {
-      const isConnected = await testOllamaConnection(normalizedUrl);
+      const isConnected = await testOllamaConnection(normalizedUrl, apiFormat);
       if (!isConnected) {
         throw new ChatSDKError(
           "bad_request:admin",
@@ -129,17 +144,22 @@ export async function POST(request: Request) {
       }
     }
 
-    // Save the new URL
+    // Save the new URL and format
     await setOllamaBaseUrl(normalizedUrl);
+    if (format) {
+      await setOllamaApiFormat(format);
+    }
 
-    logger.info("Admin updated Ollama base URL", {
+    logger.info("Admin updated Ollama configuration", {
       email: session.user.email,
       url: normalizedUrl,
+      format: apiFormat,
     });
 
     return Response.json({
       success: true,
       baseUrl: normalizedUrl,
+      apiFormat,
     });
   } catch (error) {
     if (error instanceof ChatSDKError) {

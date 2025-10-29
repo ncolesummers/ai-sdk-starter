@@ -6,23 +6,43 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type { OllamaApiFormat } from "@/lib/config/ollama-config";
 
 type ConnectionStatus = "idle" | "testing" | "success" | "error";
 
 type OllamaConfigFormProps = {
   initialUrl: string;
+  initialFormat: OllamaApiFormat;
 };
 
 export const OllamaConfigForm = memo(
-  function OllamaConfigFormComponent({ initialUrl }: OllamaConfigFormProps) {
+  function OllamaConfigFormComponent({
+    initialUrl,
+    initialFormat,
+  }: OllamaConfigFormProps) {
     const [url, setUrl] = useState(initialUrl);
+    const [apiFormat, setApiFormat] = useState<OllamaApiFormat>(initialFormat);
 
-    // Only update local state when initialUrl actually changes
+    // Only update local state when initial values actually change
     useEffect(() => {
       if (url !== initialUrl) {
         setUrl(initialUrl);
       }
     }, [initialUrl, url]);
+
+    useEffect(() => {
+      if (apiFormat !== initialFormat) {
+        setApiFormat(initialFormat);
+      }
+    }, [initialFormat, apiFormat]);
+
     const [status, setStatus] = useState<ConnectionStatus>("idle");
     const [message, setMessage] = useState<string>("");
     const [isSaving, setIsSaving] = useState(false);
@@ -43,7 +63,7 @@ export const OllamaConfigForm = memo(
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ url }),
+          body: JSON.stringify({ url, format: apiFormat }),
         });
 
         const data = await response.json();
@@ -83,7 +103,11 @@ export const OllamaConfigForm = memo(
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ url, testConnection: false }),
+          body: JSON.stringify({
+            url,
+            format: apiFormat,
+            testConnection: false,
+          }),
         });
 
         const data = await response.json();
@@ -112,12 +136,16 @@ export const OllamaConfigForm = memo(
 
     const resetForm = () => {
       setUrl(initialUrl);
+      setApiFormat(initialFormat);
       setStatus("idle");
       setMessage("");
     };
 
     // Memoize computed value to prevent recalculation on every render
-    const hasChanges = useMemo(() => url !== initialUrl, [url, initialUrl]);
+    const hasChanges = useMemo(
+      () => url !== initialUrl || apiFormat !== initialFormat,
+      [url, initialUrl, apiFormat, initialFormat]
+    );
 
     return (
       <div className="space-y-6">
@@ -145,13 +173,52 @@ export const OllamaConfigForm = memo(
                 setStatus("idle");
                 setMessage("");
               }}
-              placeholder="http://localhost:11434/v1"
+              placeholder="http://localhost:11434"
               type="url"
               value={url}
             />
             <p className="text-muted-foreground text-xs">
               Enter the base URL for your Ollama server. Non-localhost URLs must
               use HTTPS.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="api-format">API Format</Label>
+            <Select
+              disabled={isSaving}
+              onValueChange={(value: OllamaApiFormat) => {
+                setApiFormat(value);
+                setStatus("idle");
+                setMessage("");
+              }}
+              value={apiFormat}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select API format" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="native">
+                  <div className="flex flex-col items-start">
+                    <div className="font-medium">Native Ollama API</div>
+                    <div className="text-muted-foreground text-xs">
+                      Uses /api/tags endpoint (recommended)
+                    </div>
+                  </div>
+                </SelectItem>
+                <SelectItem value="openai">
+                  <div className="flex flex-col items-start">
+                    <div className="font-medium">OpenAI-compatible API</div>
+                    <div className="text-muted-foreground text-xs">
+                      Uses /v1/models endpoint
+                    </div>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-muted-foreground text-xs">
+              Choose the API format your Ollama server supports. Most production
+              instances support the native format.
             </p>
           </div>
 
@@ -188,15 +255,20 @@ export const OllamaConfigForm = memo(
         <div className="rounded-lg border bg-muted/50 p-4">
           <h4 className="mb-2 font-medium text-sm">⚠️ Important Notes</h4>
           <ul className="list-inside list-disc space-y-1 text-muted-foreground text-sm">
-            <li>Changing the Ollama URL affects all users immediately</li>
+            <li>
+              Changing the Ollama configuration affects all users immediately
+            </li>
             <li>Always test the connection before saving</li>
             <li>Changes take effect within 30 seconds due to caching</li>
             <li>Make sure the Ollama server is running and accessible</li>
+            <li>Use Native API format for standard Ollama installations</li>
           </ul>
         </div>
       </div>
     );
   },
-  // Custom comparison function - only re-render if initialUrl actually changed
-  (prevProps, nextProps) => prevProps.initialUrl === nextProps.initialUrl
+  // Custom comparison function - only re-render if initial values actually changed
+  (prevProps, nextProps) =>
+    prevProps.initialUrl === nextProps.initialUrl &&
+    prevProps.initialFormat === nextProps.initialFormat
 );

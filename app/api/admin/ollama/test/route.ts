@@ -2,7 +2,10 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/admin";
 import { auth } from "@/lib/auth";
-import { testOllamaConnection } from "@/lib/config/ollama-config";
+import {
+  getOllamaApiFormat,
+  testOllamaConnection,
+} from "@/lib/config/ollama-config";
 import { ChatSDKError } from "@/lib/errors";
 import { createLogger } from "@/lib/logger";
 
@@ -11,6 +14,7 @@ const logger = createLogger("admin-api-test");
 // Validation schema for connection test
 const testConnectionSchema = z.object({
   url: z.string().url(),
+  format: z.enum(["native", "openai"]).optional(),
 });
 
 /**
@@ -33,17 +37,28 @@ export async function POST(request: Request) {
 
     // Parse and validate request body
     const body = await request.json();
-    const { url } = testConnectionSchema.parse(body);
+    const { url, format } = testConnectionSchema.parse(body);
 
-    // Normalize URL (ensure it ends with /v1)
-    const normalizedUrl = url.endsWith("/v1") ? url : `${url}/v1`;
+    // Use provided format or fall back to configured format
+    const apiFormat = format || (await getOllamaApiFormat());
+
+    // Normalize URL based on API format
+    let normalizedUrl: string;
+    if (apiFormat === "openai") {
+      // For OpenAI format, ensure URL ends with /v1
+      normalizedUrl = url.endsWith("/v1") ? url : `${url}/v1`;
+    } else {
+      // For native format, remove /v1 if present
+      normalizedUrl = url.endsWith("/v1") ? url.slice(0, -3) : url;
+    }
 
     // Test connection
-    const isConnected = await testOllamaConnection(normalizedUrl);
+    const isConnected = await testOllamaConnection(normalizedUrl, apiFormat);
 
     logger.info("Admin tested Ollama connection", {
       email: session.user.email,
       url: normalizedUrl,
+      format: apiFormat,
       success: isConnected,
     });
 
@@ -51,9 +66,9 @@ export async function POST(request: Request) {
       return Response.json(
         {
           success: false,
-          message:
-            "Failed to connect to Ollama server. Please verify the URL is correct and the server is running.",
+          message: `Failed to connect to Ollama server using ${apiFormat} API format. Please verify the URL is correct and the server is running.`,
           url: normalizedUrl,
+          apiFormat,
         },
         { status: 200 }
       );
@@ -61,8 +76,9 @@ export async function POST(request: Request) {
 
     return Response.json({
       success: true,
-      message: "Successfully connected to Ollama server",
+      message: `Successfully connected to Ollama server using ${apiFormat} API format`,
       url: normalizedUrl,
+      apiFormat,
     });
   } catch (error) {
     if (error instanceof ChatSDKError) {

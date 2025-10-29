@@ -38,7 +38,7 @@ export const ModelConfigTable = memo(
       if (!areConfigsEqual(configs, initialConfigs)) {
         setConfigs(initialConfigs);
       }
-    }, [initialConfigs, configs]);
+    }, [initialConfigs]); // Don't include configs - it would reset user changes!
     const [isSaving, setIsSaving] = useState(false);
     const [isDiscovering, setIsDiscovering] = useState(false);
     const [message, setMessage] = useState<string>("");
