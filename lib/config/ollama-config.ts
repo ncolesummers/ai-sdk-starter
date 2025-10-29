@@ -176,7 +176,7 @@ export async function testOllamaConnection(url: string): Promise<boolean> {
  */
 export async function fetchOllamaModels(url: string): Promise<OllamaModel[]> {
   try {
-    logger.info("Fetching Ollama models", { url });
+    logger.debug("Fetching Ollama models", { url });
 
     // Ensure URL ends with /v1
     const baseUrl = url.endsWith("/v1") ? url : `${url}/v1`;
