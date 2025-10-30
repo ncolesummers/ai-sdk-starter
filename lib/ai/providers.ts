@@ -55,8 +55,24 @@ async function createOllamaProvider(baseURL: string) {
   const specialModelId =
     defaultModel?.id || configs.find((c) => c.enabled)?.id || "qwen3:14b";
 
-  languageModels["title-model"] = ollama(specialModelId) as LanguageModelV2;
-  languageModels["artifact-model"] = ollama(specialModelId) as LanguageModelV2;
+  // Check if special model is a reasoning model and apply middleware if needed
+  const specialModelConfig = configs.find((c) => c.id === specialModelId);
+  const baseSpecialModel = ollama(specialModelId) as LanguageModelV2;
+
+  if (specialModelConfig?.reasoning) {
+    // Apply reasoning middleware to extract <think> tags from special models
+    const wrappedSpecialModel = wrapLanguageModel({
+      model: baseSpecialModel,
+      middleware: extractReasoningMiddleware({
+        tagName: "think",
+      }) as LanguageModelMiddleware,
+    });
+    languageModels["title-model"] = wrappedSpecialModel;
+    languageModels["artifact-model"] = wrappedSpecialModel;
+  } else {
+    languageModels["title-model"] = baseSpecialModel;
+    languageModels["artifact-model"] = baseSpecialModel;
+  }
 
   logger.info("Provider created with dynamic models", {
     modelCount: Object.keys(languageModels).length - 2, // Exclude title and artifact
